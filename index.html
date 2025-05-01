@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Portal</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Favicon -->
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎬</text></svg>">
+    <!-- PWA Stuff -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e1e1e">
+    <!-- Add NoSleep.js to prevent auto-lock on iOS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
+    <!-- Add HLS.js for m3u8 playback -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Add Plyr CSS and JS for accessible video player -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css" />
+    <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.min.js"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <button id="headerWatchListBtn" class="header-btn">观看列表</button>
+            <div class="search-container">
+                <!-- Hamburger menu removed for simplicity -->
+                <input type="text" id="searchInput" placeholder="Search videos" value="粤语">
+                <button id="searchButton">搜索</button>
+                <button id="settingsButton" class="settings-button">⚙️</button>
+            </div>
+        </header>
+
+        <nav id="categoryNav" class="visible">
+            <ul id="categoryList">
+                <!-- Categories will be loaded here -->
+                <li id="settingsNav">设置</li>
+                <li id="historyNav">观看历史</li>
+            </ul>
+        </nav>
+
+        <main>
+            <div id="loadingIndicator">Loading videos...</div>
+            <div id="videoGrid">
+                <!-- Video cards will be loaded here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Video Detail Modal -->
+    <div id="videoDetailModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"
+        aria-describedby="modalDescription">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div class="modal-poster">
+                <img id="modalPoster" src="" alt="Video Poster">
+            </div>
+            <div class="modal-info">
+                <h2 id="modalTitle">Video Title</h2>
+                <button id="shareButton" class="share-button">分享</button>
+                <button id="addToWatchListButton" class="watchlist-button">添加到观看列表</button>
+                <p><strong>Year:</strong> <span id="modalYear"></span></p>
+                <p><strong>Area:</strong> <span id="modalArea"></span></p>
+                <p><strong>Language:</strong> <span id="modalLang"></span></p>
+                <p><strong>Director:</strong> <span id="modalDirector"></span></p>
+                <p><strong>Actors:</strong> <span id="modalActors"></span></p>
+                <p><strong>Status:</strong> <span id="modalRemarks"></span></p>
+                <p><strong>Description:</strong></p>
+                <div id="modalDescription"></div>
+                <br>
+                <h4>Episodes/Playback:</h4>
+                <div class="modal-episodes">
+                    <div id="modalEpisodes">
+                        <!-- Episode links will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Player Modal (New) -->
+    <div id="videoPlayerModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="playingTitle">
+        <div class="video-modal-content">
+            <span class="close-button">&times;</span>
+            <div class="video-player-container">
+                <!-- HTML5 video element for HLS.js playback -->
+                <video id="videoPlayer" class="plyr__video-embed" preload="auto" autoplay style="width:100%; height:100%;"></video>
+            </div>
+            <div class="video-title-container">
+                <h3 id="playingTitle">Now Playing</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Link Modal -->
+    <div id="shareModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+        <div class="modal-content share-modal">
+            <span class="close-button">&times;</span>
+            <h3 id="shareModalTitle">Share Video</h3>
+            <div class="share-content">
+                <input type="text" id="shareLink" readonly>
+                <button id="copyLinkButton">复制链接</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toastContainer"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+        <div class="modal-content settings-modal">
+            <span class="close-button">&times;</span>
+            <h3 id="settingsModalTitle">设置</h3>
+            <div class="settings-form">
+                <label for="passwordInput">请输入密码：</label>
+                <input type="password" id="passwordInput" placeholder="密码">
+                <button id="submitPassword">提交</button>
+                <p id="passwordMessage"></p>
+
+                <!-- Export/Import All User Data -->
+                <div class="userdata-import-export" style="margin-top:1rem;">
+                    <button id="exportAllUserDataButton">导出全部数据 (.json)</button>
+                    <input type="file" id="importAllUserDataInput" accept=".json" style="display:none;">
+                    <button id="importAllUserDataButton">导入全部数据 (.json)</button>
+                </div>
+                <div class="control-settings-option" style="margin-top:1rem;">
+                    <input type="checkbox" id="alwaysShowControlsCheckbox">
+                    <label for="alwaysShowControlsCheckbox">在全屏模式下始终显示视频控制面板</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add bottom navigation bar for mobile watch list -->
+    <div class="bottom-nav">
+        <button id="watchHistoryButton" class="bottom-nav-button" style="float:left;">&#128340; 观看历史</button>
+        <button id="mobileWatchListButton" class="bottom-nav-button">观看列表</button>
+    </div>
+
+    <!-- Watch History Modal -->
+    <div id="watchHistoryModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="watchHistoryModalTitle">
+        <div class="modal-content watch-history-modal">
+            <span class="close-button">&times;</span>
+            <h3 id="watchHistoryModalTitle">观看历史</h3>
+            <div id="watchHistoryList">
+                <!-- Watch history items will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loader Overlay for elderly users -->
+    <div id="loaderOverlay" style="display:none;" aria-live="polite" aria-label="加载中...">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">加载中…</div>
+    </div>
+    <!-- Error Overlay for elderly users -->
+    <div id="errorOverlay" style="display:none;" aria-live="assertive" aria-label="加载失败">
+        <div class="error-text">视频加载失败，请重试。</div>
+        <button id="retryButton" aria-label="重试" style="font-size:1.5rem; padding:1rem 2rem; margin-top:1.5rem;">重试</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
