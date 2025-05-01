@@ -2175,7 +2175,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.Plyr && videoPlayerElem) {
         plyrPlayer = new Plyr(videoPlayerElem, {
             controls: [
-                'play-large', 'play', 'progress', 'current-time', 'fullscreen'
+                'play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'
             ],
             settings: ['quality', 'speed'],
             hideControls: false, // Always show controls
@@ -2238,6 +2238,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+        // Auto-play next episode when the current video ends
+        plyrPlayer.on('ended', () => {
+            console.log('Video ended, auto-playing next episode');
+            if (currentEpisodeIndex < currentEpisodes.length - 1) {
+                playEpisode(currentEpisodeIndex + 1);
+            }
+        });
     }
 
     // Loader and Error Overlay logic for elderly users

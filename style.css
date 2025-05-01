@@ -1596,3 +1596,12 @@ button:hover,
 .hide-controls .plyr__controls {
   display: none !important;
 }
+
+/* Force show Plyr audio controls on iPad */
+.plyr__controls button[data-plyr="mute"],
+.plyr__controls .plyr__volume {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
