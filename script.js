@@ -194,6 +194,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     watchList = imported.watchList;
                 }
                 showToast('All user data imported!', 'info');
+                // Refresh watch list UI immediately
+                if (typeof loadWatchList === 'function') loadWatchList();
                 // Optionally refresh UI to reflect new data
                 settingsModal.classList.remove('open');
                 updateBodyScrollLock && updateBodyScrollLock();
