@@ -207,6 +207,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Close settings and restore scrolling
                 settingsModal.classList.remove('open');
                 updateBodyScrollLock && updateBodyScrollLock();
+                // Reload page to apply imported user data throughout the app
+                location.reload();
             } catch (err) {
                 console.error(err);
                 showToast('Failed to import user data', 'error');
