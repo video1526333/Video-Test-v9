@@ -200,13 +200,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const currentActive = categoryList.querySelector('li.active');
                     if (currentActive) currentActive.classList.remove('active');
                     const watchLi = categoryList.querySelector('li[data-id="watchlist"]');
-                // Refresh watch list UI immediately
-                if (typeof loadWatchList === 'function') loadWatchList();
-                // Optionally refresh UI to reflect new data
+                    if (watchLi) watchLi.classList.add('active');
+                    // Render the updated watch list
+                    loadWatchList();
+                }
+                // Close settings and restore scrolling
                 settingsModal.classList.remove('open');
                 updateBodyScrollLock && updateBodyScrollLock();
-                // Optionally reload page
-                // location.reload();
             } catch (err) {
                 console.error(err);
                 showToast('Failed to import user data', 'error');
