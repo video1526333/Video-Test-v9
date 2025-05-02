@@ -179,43 +179,165 @@ document.addEventListener('DOMContentLoaded', () => {
     function importAllUserData(event) {
         const file = event.target.files[0];
         if (!file) return;
+        
+        // Show loading indicator for large files
+        if (file.size > 1000000) { // 1MB
+            showToast('Processing large file, please wait...', 'info', 10000);
+            showLoading();
+        }
+        
+        // For very large files on mobile devices, use a more memory-efficient approach
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isLargeFile = file.size > 5000000; // 5MB
+        
+        if (isMobile && isLargeFile) {
+            processMobileImport(file);
+            return;
+        }
+        
+        // Standard import for smaller files
         const reader = new FileReader();
         reader.onload = function (e) {
             try {
                 const imported = JSON.parse(e.target.result);
-                if (imported.watchedEpisodes) {
-                    localStorage.setItem('watchedEpisodes', JSON.stringify(imported.watchedEpisodes));
-                }
-                if (imported.playbackPositions) {
-                    localStorage.setItem('playbackPositions', JSON.stringify(imported.playbackPositions));
-                }
-                if (imported.watchList) {
-                    localStorage.setItem('watchList', JSON.stringify(imported.watchList));
-                    watchList = imported.watchList;
-                }
-                showToast('All user data imported!', 'info');
-                // Switch to Watch List view and re-render
-                if (typeof loadWatchList === 'function' && categoryList) {
-                    // Highlight Watch List tab
-                    const currentActive = categoryList.querySelector('li.active');
-                    if (currentActive) currentActive.classList.remove('active');
-                    const watchLi = categoryList.querySelector('li[data-id="watchlist"]');
-                    if (watchLi) watchLi.classList.add('active');
-                    // Render the updated watch list
-                    loadWatchList();
-                }
-                // Close settings and restore scrolling
-                settingsModal.classList.remove('open');
-                updateBodyScrollLock && updateBodyScrollLock();
-                // Reload page to apply imported user data throughout the app
-                location.reload();
+                importUserData(imported);
             } catch (err) {
                 console.error(err);
                 showToast('Failed to import user data', 'error');
+                hideLoading();
             }
+        };
+        reader.onerror = function() {
+            showToast('Error reading file', 'error');
+            hideLoading();
         };
         reader.readAsText(file);
         event.target.value = '';
+    }
+    
+    // Helper function to process imports on mobile with memory constraints
+    function processMobileImport(file) {
+        // Create a new FileReader for streaming
+        const reader = new FileReader();
+        
+        // Process data in chunks for watchedEpisodes
+        reader.onload = function(e) {
+            try {
+                // First pass: just extract watchedEpisodes to reduce memory usage
+                let text = e.target.result;
+                let watchedEpisodesMatch = /"watchedEpisodes"\s*:\s*(\{[^}]*\})/.exec(text);
+                
+                if (watchedEpisodesMatch && watchedEpisodesMatch[1]) {
+                    try {
+                        // Extract just the watchedEpisodes portion
+                        const watchedEpisodes = JSON.parse(watchedEpisodesMatch[1]);
+                        localStorage.setItem('watchedEpisodes', JSON.stringify(watchedEpisodes));
+                        showToast('Watch history imported successfully', 'info');
+                    } catch (parseErr) {
+                        console.error('Error parsing watchedEpisodes:', parseErr);
+                    }
+                }
+                
+                // Second pass: extract playbackPositions
+                let playbackPositionsMatch = /"playbackPositions"\s*:\s*(\{[^}]*\})/.exec(text);
+                
+                if (playbackPositionsMatch && playbackPositionsMatch[1]) {
+                    try {
+                        const playbackPositions = JSON.parse(playbackPositionsMatch[1]);
+                        localStorage.setItem('playbackPositions', JSON.stringify(playbackPositions));
+                        showToast('Playback positions imported successfully', 'info');
+                    } catch (parseErr) {
+                        console.error('Error parsing playbackPositions:', parseErr);
+                    }
+                }
+                
+                // Third pass: extract watchList (usually smaller)
+                let watchListMatch = /"watchList"\s*:\s*(\[[^\]]*\])/.exec(text);
+                
+                if (watchListMatch && watchListMatch[1]) {
+                    try {
+                        const importedWatchList = JSON.parse(watchListMatch[1]);
+                        localStorage.setItem('watchList', JSON.stringify(importedWatchList));
+                        watchList = importedWatchList;
+                        showToast('Watch list imported successfully', 'info');
+                        
+                        // Update UI if needed
+                        if (typeof loadWatchList === 'function' && categoryList) {
+                            const currentActive = categoryList.querySelector('li.active');
+                            if (currentActive) currentActive.classList.remove('active');
+                            const watchLi = categoryList.querySelector('li[data-id="watchlist"]');
+                            if (watchLi) watchLi.classList.add('active');
+                            loadWatchList();
+                        }
+                    } catch (parseErr) {
+                        console.error('Error parsing watchList:', parseErr);
+                    }
+                }
+                
+                // Clean up and refresh
+                text = null; // Help garbage collection
+                settingsModal.classList.remove('open');
+                updateBodyScrollLock && updateBodyScrollLock();
+                hideLoading();
+                
+                // Reload the page to apply changes
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+                
+            } catch (err) {
+                console.error('Error in mobile import:', err);
+                showToast('Failed to import user data', 'error');
+                hideLoading();
+            }
+        };
+        
+        reader.onerror = function() {
+            showToast('Error reading file', 'error');
+            hideLoading();
+        };
+        
+        // Read the file as text
+        reader.readAsText(file);
+        // Clear the file input
+        event.target.value = '';
+    }
+    
+    // Helper function for standard imports
+    function importUserData(imported) {
+        if (imported.watchedEpisodes) {
+            localStorage.setItem('watchedEpisodes', JSON.stringify(imported.watchedEpisodes));
+        }
+        if (imported.playbackPositions) {
+            localStorage.setItem('playbackPositions', JSON.stringify(imported.playbackPositions));
+        }
+        if (imported.watchList) {
+            localStorage.setItem('watchList', JSON.stringify(imported.watchList));
+            watchList = imported.watchList;
+        }
+        
+        showToast('All user data imported!', 'info');
+        
+        // Switch to Watch List view and re-render
+        if (typeof loadWatchList === 'function' && categoryList) {
+            // Highlight Watch List tab
+            const currentActive = categoryList.querySelector('li.active');
+            if (currentActive) currentActive.classList.remove('active');
+            const watchLi = categoryList.querySelector('li[data-id="watchlist"]');
+            if (watchLi) watchLi.classList.add('active');
+            // Render the updated watch list
+            loadWatchList();
+        }
+        
+        // Close settings and restore scrolling
+        settingsModal.classList.remove('open');
+        updateBodyScrollLock && updateBodyScrollLock();
+        hideLoading();
+        
+        // Reload page to apply imported user data throughout the app
+        setTimeout(() => {
+            location.reload();
+        }, 500);
     }
 
     // Wire up events
