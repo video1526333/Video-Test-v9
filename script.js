@@ -968,6 +968,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to play m3u8 videos
     function playM3u8Video(url, linkElement, retryCount = 0) {
+        // Ensure the video is unmuted on each new playback
+        videoPlayer.muted = false;
         // Enable wake lock immediately on playback start
         try { noSleep.enable(); console.log('Wake Lock enabled (on play)'); } catch(e) {}
         const MAX_RETRIES = 3;
@@ -1187,12 +1189,12 @@ document.addEventListener('DOMContentLoaded', () => {
             videoPlayer.addEventListener('pause', pauseHandler);
             videoPlayer.play().then(() => {
                 console.log('[Resume Debug] play() called after setting currentTime.');
-                // Restore mute state after playback starts
-                setTimeout(() => { videoPlayer.muted = wasMuted; }, 200);
+                // Ensure unmuted after playback starts
+                setTimeout(() => { videoPlayer.muted = false; }, 200);
             }).catch(e => {
                 console.error('[Resume Debug] Playback error (autoplay?):', e);
-                // Try to restore mute state anyway
-                setTimeout(() => { videoPlayer.muted = wasMuted; }, 200);
+                // Ensure unmuted anyway
+                setTimeout(() => { videoPlayer.muted = false; }, 200);
                 
                 // Add play button overlay for user interaction when autoplay fails
                 showPlayOverlay();
