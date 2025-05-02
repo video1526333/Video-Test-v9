@@ -1830,29 +1830,37 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         showToast('Loading your watch list...', 'info');
-        const ids = watchList.join(',');
-        const data = await fetchData({ ac: 'detail', ids: ids });
-        if (!data || !data.list) {
-            videoGrid.innerHTML = '<p>Failed to load watch list.</p>';
-            return;
+        // Fetch details in chunks to handle large lists
+        const chunkSize = 20;
+        for (let i = 0; i < watchList.length; i += chunkSize) {
+            const idsChunk = watchList.slice(i, i + chunkSize).join(',');
+            try {
+                const data = await fetchData({ ac: 'detail', ids: idsChunk }, true);
+                if (!data || !data.list) {
+                    console.error('Failed to load watch list for IDs:', idsChunk);
+                    continue;
+                }
+                data.list.forEach(video => {
+                    const card = document.createElement('div');
+                    card.className = 'video-card';
+                    card.dataset.id = video.vod_id;
+                    const img = document.createElement('img');
+                    const validImageUrl = getValidImageUrl(video.vod_pic);
+                    img.src = validImageUrl || '';
+                    img.alt = video.vod_name || 'No Image';
+                    const title = document.createElement('h3');
+                    title.textContent = video.vod_name || 'No Title';
+                    const remarks = document.createElement('p');
+                    remarks.textContent = video.vod_remarks || '';
+                    card.appendChild(img);
+                    card.appendChild(title);
+                    card.appendChild(remarks);
+                    videoGrid.appendChild(card);
+                });
+            } catch (err) {
+                console.error('Failed to load watch list chunk:', err);
+            }
         }
-        data.list.forEach(video => {
-            const card = document.createElement('div');
-            card.className = 'video-card';
-            card.dataset.id = video.vod_id;
-            const img = document.createElement('img');
-            const validImageUrl = getValidImageUrl(video.vod_pic);
-            img.src = validImageUrl || '';
-            img.alt = video.vod_name || 'No Image';
-            const title = document.createElement('h3');
-            title.textContent = video.vod_name || 'No Title';
-            const remarks = document.createElement('p');
-            remarks.textContent = video.vod_remarks || '';
-            card.appendChild(img);
-            card.appendChild(title);
-            card.appendChild(remarks);
-            videoGrid.appendChild(card);
-        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     function toggleWatchList() {
