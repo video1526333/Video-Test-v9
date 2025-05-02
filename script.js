@@ -517,12 +517,14 @@ document.addEventListener('DOMContentLoaded', () => {
             hasMoreContent = true;
         }
 
-        // Build query params: if searching, only include wd; otherwise list + pagination + category
+        // Build query params: include action, pagination, and optional search term
         let params;
         if (currentSearch) {
-            params = { wd: currentSearch };
-            console.log(`Searching for term: ${currentSearch}`);
+            // Use list action with search and page number
+            params = { ac: 'list', wd: currentSearch, pg: currentPage };
+            console.log(`Searching for term: ${currentSearch}, page: ${currentPage}`);
         } else {
+            // Regular listing by page and category
             params = { ac: 'list', pg: currentPage };
             if (currentCategory) {
                 params.t = currentCategory;
