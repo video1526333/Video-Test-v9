@@ -1487,6 +1487,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // New function to show play button overlay when autoplay is blocked
         function showPlayOverlay() {
+            // Disable the play overlay entirely - not needed with autoplay
+            return;
+            
+            // Original code below (disabled)
+            /*
             // Check if overlay already exists
             if (document.getElementById('playOverlay')) return;
             
@@ -1536,6 +1541,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Show toast to inform user
             showToast('Click to play video', 'info', 3000);
+            */
         }
         
         // If the video element is ready, set currentTime; otherwise, listen for loadedmetadata
