@@ -194,6 +194,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     watchList = imported.watchList;
                 }
                 showToast('All user data imported!', 'info');
+                // Switch to Watch List view and re-render
+                if (typeof loadWatchList === 'function' && categoryList) {
+                    // Highlight Watch List tab
+                    const currentActive = categoryList.querySelector('li.active');
+                    if (currentActive) currentActive.classList.remove('active');
+                    const watchLi = categoryList.querySelector('li[data-id="watchlist"]');
                 // Refresh watch list UI immediately
                 if (typeof loadWatchList === 'function') loadWatchList();
                 // Optionally refresh UI to reflect new data
