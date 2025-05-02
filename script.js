@@ -212,7 +212,10 @@ document.addEventListener('DOMContentLoaded', () => {
             hideLoading();
         };
         reader.readAsText(file);
-        event.target.value = '';
+        // Clear the file input
+        if (event && event.target) {
+            event.target.value = '';
+        }
     }
     
     // Helper function to process imports on mobile with memory constraints
@@ -225,53 +228,198 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 // First pass: just extract watchedEpisodes to reduce memory usage
                 let text = e.target.result;
-                let watchedEpisodesMatch = /"watchedEpisodes"\s*:\s*(\{[^}]*\})/.exec(text);
                 
-                if (watchedEpisodesMatch && watchedEpisodesMatch[1]) {
-                    try {
-                        // Extract just the watchedEpisodes portion
-                        const watchedEpisodes = JSON.parse(watchedEpisodesMatch[1]);
-                        localStorage.setItem('watchedEpisodes', JSON.stringify(watchedEpisodes));
-                        showToast('Watch history imported successfully', 'info');
-                    } catch (parseErr) {
-                        console.error('Error parsing watchedEpisodes:', parseErr);
-                    }
+                // Use a safer regex approach for Android compatibility
+                // Extract objects with proper JSON parsing to handle escaping correctly
+                try {
+                    // First try direct parsing - works for smaller files
+                    const fullData = JSON.parse(text);
+                    importUserData(fullData);
+                    return;
+                } catch (parseErr) {
+                    console.log('Full parse failed, trying incremental parsing:', parseErr);
+                    // Continue with incremental parsing
                 }
                 
-                // Second pass: extract playbackPositions
-                let playbackPositionsMatch = /"playbackPositions"\s*:\s*(\{[^}]*\})/.exec(text);
-                
-                if (playbackPositionsMatch && playbackPositionsMatch[1]) {
-                    try {
-                        const playbackPositions = JSON.parse(playbackPositionsMatch[1]);
-                        localStorage.setItem('playbackPositions', JSON.stringify(playbackPositions));
-                        showToast('Playback positions imported successfully', 'info');
-                    } catch (parseErr) {
-                        console.error('Error parsing playbackPositions:', parseErr);
-                    }
-                }
-                
-                // Third pass: extract watchList (usually smaller)
-                let watchListMatch = /"watchList"\s*:\s*(\[[^\]]*\])/.exec(text);
-                
-                if (watchListMatch && watchListMatch[1]) {
-                    try {
-                        const importedWatchList = JSON.parse(watchListMatch[1]);
-                        localStorage.setItem('watchList', JSON.stringify(importedWatchList));
-                        watchList = importedWatchList;
-                        showToast('Watch list imported successfully', 'info');
-                        
-                        // Update UI if needed
-                        if (typeof loadWatchList === 'function' && categoryList) {
-                            const currentActive = categoryList.querySelector('li.active');
-                            if (currentActive) currentActive.classList.remove('active');
-                            const watchLi = categoryList.querySelector('li[data-id="watchlist"]');
-                            if (watchLi) watchLi.classList.add('active');
-                            loadWatchList();
+                // Extract watched episodes - using safer approach
+                try {
+                    const watchedStart = text.indexOf('"watchedEpisodes"');
+                    if (watchedStart > -1) {
+                        // Find the start of the value (after the colon)
+                        let valueStart = text.indexOf(':', watchedStart);
+                        if (valueStart > -1) {
+                            valueStart++; // Move past the colon
+                            
+                            // Track brackets to find end of the object
+                            let bracketCount = 0;
+                            let inQuote = false;
+                            let escapeNext = false;
+                            let endPos = -1;
+                            
+                            for (let i = valueStart; i < text.length; i++) {
+                                const char = text[i];
+                                
+                                if (escapeNext) {
+                                    escapeNext = false;
+                                    continue;
+                                }
+                                
+                                if (char === '\\') {
+                                    escapeNext = true;
+                                    continue;
+                                }
+                                
+                                if (char === '"' && !escapeNext) {
+                                    inQuote = !inQuote;
+                                    continue;
+                                }
+                                
+                                if (!inQuote) {
+                                    if (char === '{') {
+                                        bracketCount++;
+                                    } else if (char === '}') {
+                                        bracketCount--;
+                                        if (bracketCount === 0) {
+                                            endPos = i + 1;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (endPos > -1) {
+                                // Extract and parse just this object
+                                const watchedJson = text.substring(valueStart, endPos).trim();
+                                const watchedEpisodes = JSON.parse(watchedJson);
+                                localStorage.setItem('watchedEpisodes', JSON.stringify(watchedEpisodes));
+                                showToast('Watch history imported successfully', 'info');
+                            }
                         }
-                    } catch (parseErr) {
-                        console.error('Error parsing watchList:', parseErr);
                     }
+                } catch (watchedErr) {
+                    console.error('Error extracting watchedEpisodes:', watchedErr);
+                }
+                
+                // Extract playback positions with the same technique
+                try {
+                    const playbackStart = text.indexOf('"playbackPositions"');
+                    if (playbackStart > -1) {
+                        let valueStart = text.indexOf(':', playbackStart);
+                        if (valueStart > -1) {
+                            valueStart++;
+                            
+                            let bracketCount = 0;
+                            let inQuote = false;
+                            let escapeNext = false;
+                            let endPos = -1;
+                            
+                            for (let i = valueStart; i < text.length; i++) {
+                                const char = text[i];
+                                
+                                if (escapeNext) {
+                                    escapeNext = false;
+                                    continue;
+                                }
+                                
+                                if (char === '\\') {
+                                    escapeNext = true;
+                                    continue;
+                                }
+                                
+                                if (char === '"' && !escapeNext) {
+                                    inQuote = !inQuote;
+                                    continue;
+                                }
+                                
+                                if (!inQuote) {
+                                    if (char === '{') {
+                                        bracketCount++;
+                                    } else if (char === '}') {
+                                        bracketCount--;
+                                        if (bracketCount === 0) {
+                                            endPos = i + 1;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (endPos > -1) {
+                                const playbackJson = text.substring(valueStart, endPos).trim();
+                                const playbackPositions = JSON.parse(playbackJson);
+                                localStorage.setItem('playbackPositions', JSON.stringify(playbackPositions));
+                                showToast('Playback positions imported successfully', 'info');
+                            }
+                        }
+                    }
+                } catch (playbackErr) {
+                    console.error('Error extracting playbackPositions:', playbackErr);
+                }
+                
+                // Extract watch list using safer approach for arrays
+                try {
+                    const watchListStart = text.indexOf('"watchList"');
+                    if (watchListStart > -1) {
+                        let valueStart = text.indexOf(':', watchListStart);
+                        if (valueStart > -1) {
+                            valueStart++;
+                            
+                            let bracketCount = 0;
+                            let inQuote = false;
+                            let escapeNext = false;
+                            let endPos = -1;
+                            
+                            for (let i = valueStart; i < text.length; i++) {
+                                const char = text[i];
+                                
+                                if (escapeNext) {
+                                    escapeNext = false;
+                                    continue;
+                                }
+                                
+                                if (char === '\\') {
+                                    escapeNext = true;
+                                    continue;
+                                }
+                                
+                                if (char === '"' && !escapeNext) {
+                                    inQuote = !inQuote;
+                                    continue;
+                                }
+                                
+                                if (!inQuote) {
+                                    if (char === '[') {
+                                        bracketCount++;
+                                    } else if (char === ']') {
+                                        bracketCount--;
+                                        if (bracketCount === 0) {
+                                            endPos = i + 1;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (endPos > -1) {
+                                const watchListJson = text.substring(valueStart, endPos).trim();
+                                const importedWatchList = JSON.parse(watchListJson);
+                                localStorage.setItem('watchList', JSON.stringify(importedWatchList));
+                                watchList = importedWatchList;
+                                showToast('Watch list imported successfully', 'info');
+                                
+                                // Update UI if needed
+                                if (typeof loadWatchList === 'function' && categoryList) {
+                                    const currentActive = categoryList.querySelector('li.active');
+                                    if (currentActive) currentActive.classList.remove('active');
+                                    const watchLi = categoryList.querySelector('li[data-id="watchlist"]');
+                                    if (watchLi) watchLi.classList.add('active');
+                                    loadWatchList();
+                                }
+                            }
+                        }
+                    }
+                } catch (watchListErr) {
+                    console.error('Error extracting watchList:', watchListErr);
                 }
                 
                 // Clean up and refresh
@@ -300,7 +448,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Read the file as text
         reader.readAsText(file);
         // Clear the file input
-        event.target.value = '';
+        if (event && event.target) {
+            event.target.value = '';
+        }
     }
     
     // Helper function for standard imports
